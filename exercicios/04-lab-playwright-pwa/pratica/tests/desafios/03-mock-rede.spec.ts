@@ -31,6 +31,7 @@ test.describe('Bloco C — mock de rede', () => {
   // 🧩 O mock já está escrito: o catálogo agora tem 1 filme só (id 777). Confira que
   //    a tela mostra exatamente 1 card e que o título dele é "Filme do Mock".
   // 🆘 Dica: o testid do título é  movie-card-title-777
+
   test('C1. fulfill: o backend devolve 1 filme inventado', async ({ page }) => {
     // Registre o mock ANTES do goto — rota registrada tarde não intercepta nada.
     await page.route(CATALOGO, (route) =>
@@ -45,7 +46,9 @@ test.describe('Bloco C — mock de rede', () => {
     await page.goto('/qa');
 
     // ✍️ sua vez
-    falta('C1 — confira 1 card e o título');
+    await expect(page.getByRole('article')).toHaveCount(1);
+    await expect(page.getByTestId('movie-card-title-777')).toHaveText('Filme do Mock');
+    //falta('C1 — confira 1 card e o título');
   });
 
   // ── C2 🟡 · ≈ 7 min ────────────────────────────────────────────────────────
@@ -58,7 +61,23 @@ test.describe('Bloco C — mock de rede', () => {
   //    5. o erro some e os 12 cards aparecem
   test('C2. erro 500 mostra o estado de erro; destrava a rota e "Tentar de novo" funciona', async ({ page }) => {
     void page;
-    falta('C2 — escreva os 5 passos');
+    await page.route(CATALOGO, (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Erro simulado' }),
+      }),
+    );
+
+    await page.goto('/qa');
+    await expect(page.getByTestId('movielist-error')).toBeVisible();
+
+    await page.unroute(CATALOGO);
+    await page.getByTestId('movielist-retry-button').click();
+    await expect(page.getByTestId('movielist-error')).toBeHidden();
+    await expect(page.getByRole('article')).toHaveCount(12);
+
+    //falta('C2 — escreva os 5 passos');
   });
 
   // ── C3 🟡 · ≈ 7 min ────────────────────────────────────────────────────────
@@ -72,7 +91,23 @@ test.describe('Bloco C — mock de rede', () => {
   //    Depois: goto('/qa'), confira 3 cards e que o título do Matrix (id 603) é "MATRIX".
   test('C3. route.fetch(): pega a resposta REAL e altera só o que importa', async ({ page }) => {
     void page;
-    falta('C3 — escreva o handler e as asserções');
+    await page.route(CATALOGO, async (route) => {
+      const response = await route.fetch();
+      const json = await response.json();
+      const alteredJson = json.slice(0, 3).map((movie: any) => ({
+        ...movie,
+        title: movie.title.toUpperCase(),
+      }));
+      await route.fulfill({
+        response,
+        json: alteredJson,
+      });
+    }
+    );
+    await page.goto('/qa');
+    await expect(page.getByRole('article')).toHaveCount(3);
+    await expect(page.getByTestId('movie-card-title-603')).toHaveText('MATRIX');
+    //falta('C3 — escreva o handler e as asserções');
   });
 
   // ── C4 🔴 · ≈ 12 min ───────────────────────────────────────────────────────
@@ -90,6 +125,19 @@ test.describe('Bloco C — mock de rede', () => {
   //    contar logo depois de digitar?
   test('C4. debounce: digitar "matrix" faz UMA requisição só', async ({ page }) => {
     void page;
-    falta('C4 — escreva o teste inteiro');
+    let requestCount = 0;
+    page.on('request', (request) => {
+      if (request.url().endsWith('/api/movies.json')) {
+        requestCount++;
+      }
+    });
+
+    await page.goto('/search');
+    const input = page.getByTestId('search-input');
+    await input.pressSequentially('matrix', { delay: 40 });
+    await expect(page.getByTestId('search-result-603')).toBeVisible();
+    expect(requestCount, 'Deveria ter 1 requisição ao catálogo').toBe(1);
+
+    //falta('C4 — escreva o teste inteiro');
   });
 });

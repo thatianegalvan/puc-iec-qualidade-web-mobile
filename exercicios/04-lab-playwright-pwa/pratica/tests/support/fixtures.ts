@@ -30,14 +30,22 @@ export const test = base.extend<Fixtures>({
   catalog: async ({ page }, use) => {
     void page;
     void use;
-    falta('D3 — fixture catalog');
+    await use(new CatalogPage(page));
+    //falta('D3 — fixture catalog');
   },
 
   // ✍️ entregue uma função (ids) => … que faz o addInitScript descrito acima
   seedFavorites: async ({ context }, use) => {
     void context;
     void use;
-    falta('D3 — fixture seedFavorites');
+    await use(async (ids: number[]) => {
+      await context.addInitScript(([k, v]) => localStorage.setItem(k, v), [
+        'cinefav-favorites',
+        JSON.stringify(ids),
+      ]);
+    });
+    
+    //falta('D3 — fixture seedFavorites');
   },
 });
 

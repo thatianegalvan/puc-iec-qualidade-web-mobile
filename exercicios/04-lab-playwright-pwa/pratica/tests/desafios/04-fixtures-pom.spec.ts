@@ -36,7 +36,39 @@ base.describe('Bloco D — conta nova (sem sessão)', () => {
   //    6. POSITIVO: entre com "abcd" → sai do /login e, em '/qa', o logout-button aparece
   base('D1. cadastro → sair → senha errada → entrar com a conta nova', async ({ page }) => {
     void page;
-    falta('D1 — escreva o fluxo');
+    const emailUnico = `aluna.${Date.now()}@teste.com`;
+
+    // 1. /login → clique em criar conta
+    await page.goto('/login');
+    await page.getByTestId('auth-mode-toggle').click();
+
+    // 2. Preencha o cadastro e envie
+    await page.getByTestId('register-name-input').fill('Aluna Teste');
+    await page.getByTestId('register-email-input').fill(emailUnico);
+    await page.getByTestId('register-password-input').fill('abcd');
+    await page.getByTestId('register-submit-button').click();
+
+    // 3. Espere sair do /login e navegue para /qa
+    await page.waitForURL((url) => !url.pathname.startsWith('/login'));
+    await page.goto('/qa');
+
+    // 4. Clique em Sair → volta para /login
+    await page.getByTestId('logout-button').click();
+    await expect(page).toHaveURL(/\/login/);
+
+    // 5. NEGATIVO: entre com senha errada
+    await page.getByTestId('login-email-input').fill(emailUnico);
+    await page.getByTestId('login-password-input').fill('errada');
+    await page.getByTestId('login-submit-button').click();
+    await expect(page.getByTestId('login-error-message')).toHaveText('E-mail ou senha inválidos');
+
+    // 6. POSITIVO: entre com a senha correta ("abcd")
+    await page.getByTestId('login-password-input').fill('abcd');
+    await page.getByTestId('login-submit-button').click();
+    await page.waitForURL((url) => !url.pathname.startsWith('/login'));
+    await page.goto('/qa');
+    await expect(page.getByTestId('logout-button')).toBeVisible();
+    //falta('D1 — escreva o fluxo');
   });
 });
 
@@ -49,7 +81,14 @@ base('D2. Page Object: o teste lê como uma frase', async ({ page }) => {
   const catalog = new CatalogPage(page);
   void catalog;
   void expect;
-  falta('D2 — use o CatalogPage');
+
+  await catalog.goto();
+  await catalog.favorite('Pulp Fiction'); //favoriteMovie('Pulp Fiction');
+  await catalog.openFavorites();
+  await catalog.expectFavoritesCount('1 filme favorito');
+  // await expect(catalog.favoritesCount).toHaveText('1 filme favorito');
+  //await expect(catalog.card('Pulp Fiction')).toBeVisible();
+  //falta('D2 — use o CatalogPage');
 });
 
 // ── D3 🔴 · ≈ 12 min ─────────────────────────────────────────────────────────
@@ -65,5 +104,16 @@ test('D3. fixtures: semeia favoritos sem clicar e confere na tela', async ({ cat
   void catalog;
   void seedFavorites;
   void expectFx;
-  falta('D3 — escreva o teste com as fixtures');
+  await seedFavorites([603, 680]);
+
+
+  await catalog.goto();
+  await catalog.openFavorites();
+
+  // 3. Valida a contagem e a exibição individual dos itens semeados
+  await expect(catalog.favoritesCount).toHaveText('2 filmes favoritos');
+  await expectFx(page.getByTestId('favorites-item-603')).toBeVisible();
+  await expectFx(page.getByTestId('favorites-item-680')).toBeVisible();
+
+  //falta('D3 — escreva o teste com as fixtures');
 });

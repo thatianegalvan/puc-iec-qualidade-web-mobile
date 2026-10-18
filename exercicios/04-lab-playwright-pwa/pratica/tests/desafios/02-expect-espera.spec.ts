@@ -31,8 +31,16 @@ test.describe('Bloco B — expect e espera', () => {
     await expect(cards).toHaveCount(12);
 
     // ✍️ sua vez: 24, depois 36, depois o botão some
-    void loadMore;
-    falta('B1 — complete a paginação');
+    await loadMore.click();
+    await expect(cards).toHaveCount(24);
+
+    await loadMore.click();
+    await expect(cards).toHaveCount(36);
+
+    await expect(loadMore).toBeHidden();
+   // void loadMore;
+
+    //falta('B1 — complete a paginação');
   });
 
   // ── B2 🟡 · ≈ 7 min ────────────────────────────────────────────────────────
@@ -48,7 +56,26 @@ test.describe('Bloco B — expect e espera', () => {
   test('B2. busca com debounce: digita devagar, limpa, e o vazio', async ({ page }) => {
     await page.goto('/search');
 
-    falta('B2 — escreva os 4 passos');
+    const input = page.getByTestId('search-input');
+    const results = page.locator('[data-testid^="search-result-"]');
+
+    const clear = page.getByTestId('search-clear-button');
+    
+    // ✍️ sua vez: 4 passos da busca, com pressSequentially e seletor por prefixo
+    await input.pressSequentially('matrix', { delay: 80 });
+    await expect(results).toHaveCount(1);
+    await expect(results).toContainText('Matrix');
+
+    await page.getByRole('button', { name: 'Limpar' }).click();
+    await expect(input).toHaveValue('');
+    await expect(results).toHaveCount(0);
+
+    await input.pressSequentially('xyzw', { delay: 80 });
+
+    await expect(page.getByTestId('search-empty')).toContainText('xyzw'); 
+
+
+    //alta('B2 — escreva os 4 passos');
   });
 
   // ── B3 🔴 · ≈ 12 min ───────────────────────────────────────────────────────
@@ -68,7 +95,28 @@ test.describe('Bloco B — expect e espera', () => {
   //    3) await expect.soft(locator).toHaveAttribute(...)
   test('B3. favoritos persistem: expect.poll no localStorage + soft após reload', async ({ page }) => {
     await page.goto('/qa');
+    const btnMatrix = page.getByTestId('movie-card-heart-603');
+    const btnPulp = page.getByTestId('movie-card-heart-680');
+    const btnFight = page.getByTestId('movie-card-heart-550');
+    //const forrestHeart = page.getByTestId('movie-card-heart-13');
 
-    falta('B3 — escreva o teste inteiro');
+    // ✍️ sua vez: favorite os 3 filmes, espere o localStorage, recarregue e confira
+    await btnMatrix.click();
+    await btnPulp.click();
+    await btnFight.click();    
+    
+    await expect.poll(async () => {
+      return await page.evaluate(() => JSON.parse(localStorage.getItem('cinefav-favorites') ?? '[]'));
+    }).toEqual([603, 680, 550]);
+
+    await page.reload();  
+    await expect.soft(btnMatrix).toHaveAttribute('aria-pressed', 'true');
+    await expect.soft(btnPulp).toHaveAttribute('aria-pressed', 'true');
+    await expect.soft(btnFight).toHaveAttribute('aria-pressed', 'true');
+
+    const forrestHeart = page.getByTestId('movie-card-heart-13');
+    await expect.soft(forrestHeart).toHaveAttribute('aria-pressed', 'false');      
+
+   // falta('B3 — escreva o teste inteiro');
   });
 });

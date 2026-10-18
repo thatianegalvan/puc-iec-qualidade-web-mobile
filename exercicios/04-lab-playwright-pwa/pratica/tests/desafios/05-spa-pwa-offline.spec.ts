@@ -39,7 +39,12 @@ test.describe('Bloco E — SPA e PWA', () => {
     await page.goto('/movie/603');
 
     // ✍️ sua vez
-    falta('E1 — escreva as asserções');
+   // falta('E1 — escreva as asserções');
+   await expect(page.locator('html')).toHaveAttribute('data-app-ready', 'true');
+   await expect(page.getByTestId('detail-title')).toHaveText('Matrix');
+   await page.goto('/rota-que-nao-existe');
+   await expect(page).toHaveURL(/\/$/); 
+
   });
 
   // ── E2 🟡 · ≈ 7 min ────────────────────────────────────────────────────────
@@ -55,7 +60,27 @@ test.describe('Bloco E — SPA e PWA', () => {
   test('E2. Service Worker ativo e controlando + manifest da PWA', async ({ page, request }) => {
     void page;
     void request;
-    falta('E2 — escreva os 5 passos');
+    //falta('E2 — escreva os 5 passos');
+    await page.goto('/qa');
+    await expect(page.getByTestId('movielist-grid')).toBeVisible();
+
+    await expect.poll(async () => {
+      const state = await page.evaluate(async () => (await navigator.serviceWorker.getRegistration())?.active?.state);
+      return state;
+    }).toBe('activated');
+
+    await waitForSwControl(page);
+
+    const manifestHref = await page.evaluate(() => {
+      const link = document.querySelector('link[rel="manifest"]') as HTMLLinkElement;
+      return link?.href || '';
+    });
+
+    const manifestResponse = await request.get(manifestHref);
+    const manifestJson = await manifestResponse.json();
+
+    expect(manifestJson.name).toBe('CineFav — filmes favoritos');
+    expect(manifestJson.display).toBe('standalone');  
   });
 
   // ── E3 🔴 · ≈ 12 min ───────────────────────────────────────────────────────
@@ -72,8 +97,20 @@ test.describe('Bloco E — SPA e PWA', () => {
   test('E3. offline: banner aparece, app continua, volta a rede e o banner some', async ({ page, context }) => {
     void page;
     void context;
-    falta('E3 — escreva o teste inteiro');
-  });
+    //falta('E3 — escreva o teste inteiro');
+    await page.goto('/qa');
+    await expect(page.getByTestId('movielist-grid')).toBeVisible();
+    await waitForSwControl(page);
+
+    await context.setOffline(true);
+    await page.reload();
+
+    await expect(page.getByTestId('offline-banner')).toBeVisible();
+    await expect(page.getByTestId('movielist-grid').locator('article')).toHaveCount(12);
+
+    await context.setOffline(false);
+    await expect(page.getByTestId('offline-banner')).toBeHidden();
+  }); 
 
   // ── E4 🔴 · ≈ 12 min ───────────────────────────────────────────────────────
   // 📚 Aprende: o padrão OFFLINE-FIRST (a "2ª gaveta", IndexedDB). O app grava o
@@ -92,6 +129,24 @@ test.describe('Bloco E — SPA e PWA', () => {
     void page;
     void context;
     void waitForSwControl;
-    falta('E4 — escreva o teste inteiro');
+   // falta('E4 — escreva o teste inteiro');
+   await page.goto('/movie/603');
+   await expect(page.getByTestId('detail-title')).toHaveText('Matrix');
+   await waitForSwControl(page);
+
+   await context.setOffline(true);
+   await page.getByTestId('comment-input').fill('Clássico absoluto');
+   await page.getByTestId('comment-submit-button').click();
+
+   const firstComment = page.getByTestId(/^comment-item-/).first();
+   await expect(firstComment).toContainText('Clássico absoluto');
+   await expect(firstComment.locator('[data-status]')).toHaveAttribute('data-status', 'pending');
+
+   await page.reload();
+   await expect(firstComment).toContainText('Clássico absoluto');
+   await expect(firstComment.locator('[data-status]')).toHaveAttribute('data-status', 'pending');
+
+   await context.setOffline(false);
+   await expect(firstComment.locator('[data-status]')).toHaveAttribute('data-status', 'synced');          
   });
 });
